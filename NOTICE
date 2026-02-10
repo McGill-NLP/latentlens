@@ -1,0 +1,15 @@
+LatentLens
+Copyright 2026 McGill NLP / Mila
+
+This project includes code derived from Molmo:
+https://github.com/allenai/molmo
+Copyright 2024 Allen Institute for AI
+Licensed under the Apache License, Version 2.0
+
+The following components are derived from Molmo:
+- Model architecture and configuration (molmo/model.py, molmo/config.py)
+- Image preprocessing utilities (molmo/data/preprocessor.py)
+- Training infrastructure
+
+We thank the Allen Institute for AI for releasing Molmo under an open license,
+which made this research possible.

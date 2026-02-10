@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data and checkpoints (too large for git)
+checkpoints/
+contextual_embeddings/
+results/
+demo/
+*.pt
+*.safetensors
+*.bin
+
+# Logs
+*.log
+wandb/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Lock files (keep uv.lock for reproducibility)
+# uv.lock
+
+# Generated files
+*.html
+!templates/*.html
+.claude/
+
+# Connector weights for HuggingFace upload (too large for git)
+connectors_for_hf/
+
+# Test reproduction output (generated, not source)
+test_reproduction_output/
+
+# Translation cache
+translation_cache.json
+
+# Dev-only files (not for public release)
+CLAUDE.md
+RELEASE_STATUS.md
+example_latentlens.png

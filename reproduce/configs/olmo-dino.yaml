@@ -1,0 +1,308 @@
+run_name: baseline_pixmo-captions_resize_olmo-7b_dinov2-large-336
+seed: 6198
+epoch: null
+dry_run: false
+model:
+  d_model: 4096
+  n_heads: 32
+  n_kv_heads: null
+  qkv_bias: false
+  clip_qkv: null
+  n_layers: 32
+  mlp_ratio: 4
+  mlp_hidden_size: 22016
+  activation_type: swiglu
+  block_type: sequential
+  block_group_size: 1
+  rope: true
+  rope_full_precision: true
+  rope_theta: 500000.0
+  vision_backbone:
+    image_model_type: dino
+    image_default_input_size:
+    - 336
+    - 336
+    image_patch_size: 14
+    image_pos_patch_size: 14
+    image_emb_dim: 1024
+    image_num_heads: 16
+    image_num_key_value_heads: 16
+    image_num_layers: 24
+    image_head_dim: 64
+    image_mlp_dim: 4096
+    image_mlp_activations: gelu
+    image_dropout_rate: 0.0
+    image_num_pos: 577
+    image_norm_eps: 1.0e-06
+    attention_dropout: 0.0
+    residual_dropout: 0.0
+    initializer_range: 0.02
+    fsdp_wrap: false
+    use_n_token_only: []
+    resize_mode: dino
+  vit_load_path: pretrained/dinov2-large-336.pt
+  llm_load_path: pretrained/olmo-1024-preview.pt
+  low_cpu_fsdp: true
+  attention_type: sdpa
+  float32_attention: true
+  attention_dropout: 0.0
+  attention_layer_norm: true
+  residual_dropout: 0.0
+  response_residual_dropout: 0.1
+  embedding_dropout: 0.0
+  layer_norm_type: rms
+  layer_norm_with_affine: true
+  layer_norm_eps: 1.0e-06
+  attention_layer_norm_with_affine: true
+  max_sequence_length: 1600
+  max_position_embeddings: null
+  include_bias: false
+  bias_for_layer_norm: false
+  scale_logits: false
+  vocab_size: 100278
+  embedding_size: 100352
+  additional_vocab_size: 128
+  new_embedding_init_range: 0.02
+  weight_tying: false
+  init_device: meta
+  init_fn: normal
+  init_std: 0.02
+  init_cutoff_factor: 3.0
+  norm_after: true
+  precision: amp_bf16
+  max_crops: 12
+  crop_mode: resize
+  use_col_tokens: true
+  prompt_type: none
+  system_prompt_kind: style_and_length
+  message_formatting: none
+  always_start_with_space: true
+  multi_annotation_weighting: null
+  default_inference_len: 65
+  overlap_margins:
+  - 4
+  - 4
+  pad_value: 0.0
+  image_padding_embed: pad_and_partial_pad
+  fix_image_padding: true
+  vit_layers:
+  - -2
+  - -9
+  image_pooling_h: 1
+  image_pooling_w: 1
+  image_pooling_2d: none
+  image_projector: mlp
+  image_feature_dropout: 0.0
+  initializer_range: 0.02
+  normalize_input_embeds: false
+  use_position_ids: true
+  head_dim: null
+  tokenizer:
+    identifier: allenai/dolma2-tokenizer
+    tokenizer_dir: null
+  pad_tokenizer: true
+  moe_num_experts: 8
+  moe_top_k: 2
+  moe_mlp_impl: sparse
+  moe_log_expert_assignment: false
+  moe_shared_expert: false
+  moe_lbl_in_fp32: false
+  moe_interleave: false
+  moe_loss_weight: 0.1
+  moe_zloss_weight: null
+  moe_dropless: true
+  moe_capacity_factor: 1.25
+allow_resume: true
+ft_llm: false
+ft_vit: false
+ft_connector: true
+ft_embedding: ln_f
+optimizer:
+  name: adamw
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-05
+  connector_learning_rate: 0.0002
+  vit_learning_rate: 6.0e-06
+  llm_learning_rate: 2.0e-05
+  connector_weight_decay: 0.0
+  vit_weight_decay: 0.0
+  llm_weight_decay: 0.0
+  connector_betas:
+  - 0.9
+  - 0.95
+  vit_betas:
+  - 0.9
+  - 0.95
+  llm_betas:
+  - 0.9
+  - 0.95
+  connector_eps: 1.0e-06
+  vit_eps: 1.0e-06
+  llm_eps: 1.0e-06
+  metrics_log_interval: 20
+scheduler:
+  name: multimodal
+  units: steps
+  t_warmup: 100
+  t_max: null
+  alpha_f: 0.1
+  connector_t_warmup: 200
+  vit_t_warmup: 2000
+  llm_t_warmup: 2000
+  grad_clip_warmup_steps: null
+  grad_clip_warmup_factor: null
+  warmup_min_lr: 0.0
+data:
+  dataset: pixmo_cap
+  extra_args: null
+  mixture: null
+  root_size_mixture: null
+  split: train
+  seed: 95818
+  shuffle_messages: false
+  pad: to_max
+  sequence_length: 1600
+  shuffle: true
+  for_inference: false
+  multi_modal: torch
+  num_workers: 2
+  drop_last: true
+  pin_memory: true
+  prefetch_factor: null
+  persistent_workers: false
+  timeout: 0
+restore_dataloader: true
+fast_forward_batches: null
+evaluators:
+- label: val
+  data:
+    dataset: pixmo_cap
+    extra_args: null
+    mixture: null
+    root_size_mixture: null
+    split: validation
+    seed: null
+    shuffle_messages: false
+    pad: to_max
+    sequence_length: 1600
+    shuffle: false
+    for_inference: false
+    multi_modal: torch
+    num_workers: 2
+    drop_last: true
+    pin_memory: true
+    prefetch_factor: null
+    persistent_workers: true
+    timeout: 0
+  device_eval_batch_size: null
+  subset_num_batches: 128
+  max_examples: null
+  max_new_tokens: 448
+  mm_evaluator: null
+  save_dir: null
+  save_to_checkpoint_dir: false
+  eval_name: null
+  skip_if_metrics_cached: true
+- label: pixmo_points_val
+  data:
+    dataset: pixmo_cap
+    extra_args: null
+    mixture: null
+    root_size_mixture: null
+    split: validation
+    seed: null
+    shuffle_messages: false
+    pad: to_max
+    sequence_length: 1600
+    shuffle: false
+    for_inference: false
+    multi_modal: torch
+    num_workers: 2
+    drop_last: true
+    pin_memory: true
+    prefetch_factor: null
+    persistent_workers: true
+    timeout: 0
+  device_eval_batch_size: null
+  subset_num_batches: 128
+  max_examples: null
+  max_new_tokens: 448
+  mm_evaluator: null
+  save_dir: null
+  save_to_checkpoint_dir: false
+  eval_name: null
+  skip_if_metrics_cached: true
+eval_interval: 1000
+inf_eval_interval: -1
+inf_evaluators: []
+save_folder: ./checkpoints/baseline_pixmo-captions_resize_olmo-7b_dinov2-large-336
+remote_save_folder: null
+canceled_check_interval: 50
+save_interval: 2000
+save_interval_unsharded: 3000
+save_interval_ephemeral: null
+save_num_checkpoints_to_keep: 10
+save_num_unsharded_checkpoints_to_keep: -1
+save_overwrite: true
+force_save_unsharded: false
+no_pre_train_checkpoint: true
+initial_model_checkpoint: null
+load_model_config: null
+load_path: null
+load_path_sharded_checkpointer: null
+reset_optimizer_state: false
+reset_trainer_state: false
+save_dataloader_state: false
+reset_dataloader_state: false
+sharded_checkpointer: torch_legacy
+max_duration: 12000
+global_train_batch_size: 8
+device_train_batch_size: 2
+device_train_microbatch_size: 2
+device_eval_batch_size: 2
+eval_subset_num_batches: -1
+eval_on_load: false
+device_inf_eval_batch_size: 2
+inf_eval_subset_num_batches: -1
+device_train_grad_accum: 1
+max_grad_norm: 1.0
+multi_component_grad_norm: true
+batch_divisor: global_batch
+max_grad_norm_ratio: null
+precision: amp_bf16
+wandb:
+  project: molmo
+  entity: your-wandb-entity  # change this
+  group: null
+  name: baseline_pixmo-captions_resize_olmo-7b_dinov2-large-336
+  tags:
+  - watching
+  log_artifacts: false
+  rank_zero_only: true
+  log_interval: 4
+speed_monitor:
+  window_size: 20
+  gpu_flops_available: null
+console_log_interval: 4
+gen1_gc_interval: 4
+compile: null
+fsdp:
+  use_orig_params: true
+  sharding_strategy: FULL_SHARD
+  wrapping_strategy: by_block_and_size
+  precision: float
+  hybrid_sharding_num_model_replicas: null
+softmax_auxiliary_loss: true
+softmax_auxiliary_loss_scale: 0.0001
+time_limit: null
+extra_steps_after_cancel: 10
+python_profiling: false
+torch_profiling: false
+stop_at: 12000
+stop_after: null
+activation_checkpointing: whole_layer
+fused_loss: null
