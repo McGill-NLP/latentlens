@@ -16,11 +16,12 @@
 ## This Repository
 
 - [x] [Quickstart](#quick-start) for Qwen2-VL visual token interpretation
-- [ ] General-purpose `latentlens` library for any LLM
+- [x] General-purpose [`latentlens` library](#library-api) for any LLM
 - [x] [Paper reproduction](#reproducing-paper-results) scripts and configs
 
 1. **[Using LatentLens](#using-latentlens)** — Analyze continuous token representations in any LLM: go here for your custom use case, or to get started quickly
-2. **[Reproducing Paper Results](#reproducing-paper-results)** — Reproduce our main results on visual tokens: go here if you want to reproduce our paper
+2. **[Library API](#library-api)** — Build and search contextual embedding indices programmatically
+3. **[Reproducing Paper Results](#reproducing-paper-results)** — Reproduce our main results on visual tokens: go here if you want to reproduce our paper
 
 ---
 
@@ -48,6 +49,65 @@ On first run, pre-computed contextual embeddings (~2GB per layer) are downloaded
 4. Outputs a visualization .png file with the input image and sampled visual token interpretations 
 
 Customize with `--layers 1,4,8,16,24,27` and `--top-k 10`. Requires a GPU with >=24GB VRAM.
+
+---
+
+## Library API
+
+The `latentlens` package provides a Python API for building and searching contextual embedding indices with any HuggingFace causal LM.
+
+### Build an index from a text corpus
+
+```python
+import latentlens
+
+# Build index (loads model, processes corpus, deduplicates by prefix)
+index = latentlens.build_index(
+    "meta-llama/Meta-Llama-3-8B",
+    corpus="my_corpus.txt",  # .txt, .csv, or list of strings
+)
+index.save("my_llama_index/")
+```
+
+### Load a pre-built index and search
+
+```python
+import latentlens
+
+# Load from HuggingFace Hub (pre-computed Qwen2-VL embeddings)
+index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/latentlens-qwen2vl-embeddings")
+
+# Or from a local directory
+index = latentlens.ContextualIndex.from_directory("my_llama_index/")
+
+# Search with your own hidden states [num_tokens, hidden_dim]
+results = index.search(hidden_states, top_k=5)
+# results[i] = [Neighbor(token_str=' dog', similarity=0.42, contextual_layer=27, ...), ...]
+```
+
+### Full pipeline: inference + search
+
+```python
+import torch
+import latentlens
+
+model, tokenizer = latentlens.load_model("Qwen/Qwen2-7B")
+index = latentlens.ContextualIndex.from_directory("qwen_index/")
+
+inputs = tokenizer("a photo of a dog", return_tensors="pt").to("cuda")
+hidden_states = latentlens.get_hidden_states(model, inputs["input_ids"])
+
+# Interpret layer 27
+hs = torch.nn.functional.normalize(hidden_states[27].squeeze(0).float(), dim=-1)
+results = index.search(hs, top_k=5)
+```
+
+### Custom Models
+
+The library works with any HuggingFace `AutoModelForCausalLM`. For models not in `SUPPORTED_MODELS`, layer selection defaults to `auto_layers()` which picks early/mid/late layers automatically. To add explicit support for a new model:
+
+1. Add an entry to `latentlens.SUPPORTED_MODELS` with `num_hidden_layers`, `hidden_size`, and `default_layers`
+2. Open a PR to share with the community
 
 ---
 
@@ -267,7 +327,10 @@ python reproduce/scripts/evaluate/aggregate_results.py \
 
 ```
 ├── quickstart.py             # Try LatentLens in 5 minutes (standalone)
-├── latentlens/               # Method library (coming soon)
+├── latentlens/               # Library: build & search contextual indices
+│   ├── index.py              # ContextualIndex, Neighbor, search, save/load
+│   ├── extract.py            # build_index(), corpus loading, prefix dedup
+│   └── models.py             # load_model(), get_hidden_states(), SUPPORTED_MODELS
 ├── molmo/                    # Molmo VLM infrastructure (for reproduction)
 │   ├── model.py              # Model architecture with layer hooks
 │   ├── config.py             # Configuration classes
