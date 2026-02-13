@@ -1,8 +1,12 @@
 """
-Model loading and hidden-state extraction for supported HuggingFace causal LMs.
+Model loading and hidden-state extraction for any HuggingFace model.
 
-Users can also pass any HuggingFace model name — the helpers here handle
-pad-token setup, eval mode, and the ``output_hidden_states=True`` forward pass.
+Works with causal LMs, VLMs (Qwen2-VL, LLaVA, ...), speech LLMs,
+video LLMs, or any model that supports ``output_hidden_states=True``.
+
+The loader tries ``AutoModelForCausalLM`` first (most common), then
+falls back to ``AutoModel`` for architectures that don't register as
+causal LMs (e.g., VLMs with conditional generation heads).
 """
 
 from __future__ import annotations
@@ -10,7 +14,7 @@ from __future__ import annotations
 from typing import Optional, Union
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
 
 # Known model configurations.  ``num_hidden_layers`` and ``hidden_size`` are
@@ -43,7 +47,11 @@ def load_model(
     trust_remote_code: bool = True,
 ) -> tuple:
     """
-    Load a HuggingFace causal LM and its tokenizer.
+    Load a HuggingFace model and its tokenizer.
+
+    Tries ``AutoModelForCausalLM`` first (standard LLMs), then falls back
+    to ``AutoModel`` for VLMs, speech LLMs, video LLMs, and other
+    architectures that don't register as causal LMs.
 
     Sets the model to eval mode and ensures a pad token is defined (required
     for batched tokenization).
@@ -51,7 +59,7 @@ def load_model(
     Parameters
     ----------
     model_name : str
-        HuggingFace model ID (e.g., ``"allenai/OLMo-7B-1024-preview"``).
+        Any HuggingFace model ID — causal LMs, VLMs, speech models, etc.
     device : str or torch.device, optional
         Target device. Defaults to ``"cuda"`` if available, else ``"cpu"``.
     dtype : torch.dtype
@@ -74,12 +82,37 @@ def load_model(
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
-    )
+    # Try AutoModelForCausalLM first (standard LLMs), fall back to AutoModel
+    # for VLMs and other architectures
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
+        )
+    except (ValueError, KeyError):
+        model = AutoModel.from_pretrained(
+            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
+        )
     model = model.to(device).eval()
 
     return model, tokenizer
+
+
+def get_num_hidden_layers(model) -> int:
+    """
+    Get the number of hidden layers from a model config.
+
+    Handles both standard LLMs (``config.num_hidden_layers``) and VLMs
+    where the LLM config is nested under ``config.text_config``.
+    """
+    config = model.config
+    if hasattr(config, "num_hidden_layers"):
+        return config.num_hidden_layers
+    if hasattr(config, "text_config") and hasattr(config.text_config, "num_hidden_layers"):
+        return config.text_config.num_hidden_layers
+    raise AttributeError(
+        f"Cannot determine num_hidden_layers from {type(config).__name__}. "
+        "Pass `layers` explicitly to build_index()."
+    )
 
 
 def get_hidden_states(
@@ -93,7 +126,7 @@ def get_hidden_states(
     Parameters
     ----------
     model : PreTrainedModel
-        A HuggingFace causal LM (in eval mode).
+        A HuggingFace model in eval mode (LLM, VLM, etc.).
     input_ids : Tensor of shape ``[batch, seq_len]``
         Tokenized input IDs.
     attention_mask : Tensor, optional

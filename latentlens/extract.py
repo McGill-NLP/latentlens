@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from latentlens.index import ContextualIndex
-from latentlens.models import SUPPORTED_MODELS, get_hidden_states, load_model
+from latentlens.models import SUPPORTED_MODELS, get_hidden_states, get_num_hidden_layers, load_model
 
 
 def auto_layers(num_hidden_layers: int) -> list[int]:
@@ -121,7 +121,7 @@ def build_index(
     dev = next(model.parameters()).device
 
     # ── Determine layers ──────────────────────────────────────────────────
-    n_layers = model.config.num_hidden_layers
+    n_layers = get_num_hidden_layers(model)
     if layers is None:
         if model_name in SUPPORTED_MODELS:
             layers_to_extract = SUPPORTED_MODELS[model_name]["default_layers"]

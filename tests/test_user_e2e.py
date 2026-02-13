@@ -4,7 +4,7 @@ End-to-end tests simulating a real user who:
   2. Points to a .txt file + any HuggingFace model name
   3. Gets a searchable contextual embedding index
 
-Tests use small models (< 200M params) that run on CPU in seconds.
+Tests cover causal LMs, VLMs, and different architectures.
 Each test validates the full pipeline: load corpus → build index → save → reload → search.
 """
 
@@ -17,16 +17,8 @@ import torch.nn.functional as F
 
 CORPUS_PATH = Path(__file__).parent / "corpus_100.txt"
 
-# Small models that run on CPU in seconds — covers different architectures
-SMALL_MODELS = [
-    "distilgpt2",                    # 82M, GPT-2 architecture
-    "sshleifer/tiny-gpt2",           # ~2M, minimal GPT-2
-    "EleutherAI/pythia-70m",         # 70M, GPT-NeoX architecture
-    "facebook/opt-125m",             # 125M, OPT architecture
-]
 
-
-def _build_and_validate(model_name, corpus, layers, batch_size=8):
+def _build_and_validate(model_name, corpus, layers, batch_size=8, device=None):
     """Build index from corpus, validate structure, save/reload, search."""
     import latentlens
 
@@ -36,7 +28,7 @@ def _build_and_validate(model_name, corpus, layers, batch_size=8):
         layers=layers,
         max_contexts_per_token=10,
         batch_size=batch_size,
-        device="cpu",
+        device=device,
         show_progress=False,
     )
 
@@ -79,26 +71,44 @@ def _build_and_validate(model_name, corpus, layers, batch_size=8):
 class TestUserE2E:
     """Simulates: pip install latentlens → build_index(model, corpus.txt) → search."""
 
+    # ── Causal LMs (small, CPU-friendly) ────────────────────────────────
+
     def test_distilgpt2_from_txt_file(self):
         """User points to a .txt file and distilgpt2."""
-        _build_and_validate("distilgpt2", str(CORPUS_PATH), layers=[1, 3, 5])
+        _build_and_validate("distilgpt2", str(CORPUS_PATH), layers=[1, 3, 5], device="cpu")
 
     def test_tiny_gpt2(self):
         """Smallest possible GPT-2 variant."""
-        _build_and_validate("sshleifer/tiny-gpt2", str(CORPUS_PATH), layers=[1, 2])
+        _build_and_validate("sshleifer/tiny-gpt2", str(CORPUS_PATH), layers=[1, 2], device="cpu")
 
     def test_pythia_70m(self):
         """GPT-NeoX architecture (EleutherAI Pythia)."""
-        _build_and_validate("EleutherAI/pythia-70m", str(CORPUS_PATH), layers=[1, 3, 5])
+        _build_and_validate("EleutherAI/pythia-70m", str(CORPUS_PATH), layers=[1, 3, 5], device="cpu")
 
     def test_opt_125m(self):
         """OPT architecture (Meta)."""
-        _build_and_validate("facebook/opt-125m", str(CORPUS_PATH), layers=[1, 5, 11])
+        _build_and_validate("facebook/opt-125m", str(CORPUS_PATH), layers=[1, 5, 11], device="cpu")
+
+    # ── VLMs (need GPU) ──────────────────────────────────────────────────
+
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required")
+    def test_qwen2_vl_2b(self):
+        """Qwen2-VL-2B — real VLM, uses AutoModel fallback."""
+        _build_and_validate(
+            "Qwen/Qwen2-VL-2B-Instruct", str(CORPUS_PATH), layers=[1, 8, 27],
+        )
+
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required")
+    def test_smolvlm_256m(self):
+        """SmolVLM-256M — Idefics3 architecture, nested text_config."""
+        _build_and_validate(
+            "HuggingFaceTB/SmolVLM-256M-Instruct", str(CORPUS_PATH), layers=[1, 8, 15],
+        )
 
     def test_corpus_as_list(self):
         """User passes a Python list instead of a file path."""
         texts = ["the dog barked loudly", "a cat sat on the mat", "birds sing in trees"]
-        _build_and_validate("distilgpt2", texts, layers=[1, 5])
+        _build_and_validate("distilgpt2", texts, layers=[1, 5], device="cpu")
 
     def test_auto_layers_default(self):
         """User omits layers= entirely → auto_layers picks sensible defaults."""
