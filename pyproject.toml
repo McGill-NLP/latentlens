@@ -37,11 +37,11 @@ classifiers = [
 ]
 
 dependencies = [
-    "torch>=2.3.0,<2.5.0",
+    "torch>=2.3.0",
     "torchvision>=0.18.0",
     "transformers>=4.45.0",
     "huggingface-hub>=0.25.0",
-    "numpy>=1.26.0,<2.0.0",
+    "numpy>=1.26.0",
     "pillow>=10.0.0",
     "einops>=0.8.0",
     "omegaconf>=2.3.0",
@@ -85,3 +85,7 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "gpu: marks tests requiring a GPU",
+]
