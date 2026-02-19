@@ -4,110 +4,89 @@
 [![Demo](https://img.shields.io/badge/Demo-Interactive-orange.svg)](https://bennokrojer.com/vlm_interp_demo/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+**LatentLens** interprets what hidden representations in LLMs and VLMs encode by finding their nearest neighbors in a bank of contextual text embeddings. Unlike Logit Lens (which projects to vocabulary space), LatentLens compares against embeddings *in context* — yielding highly interpretable results, especially for continuous tokens like vision tokens that have no vocabulary entry.
 
-**LatentLens** interprets (continuous) token representations in language models by finding their nearest neighbors in contextual text embedding space. In our paper we specifically study visual tokens and find they are highly interpretable under LatentLens (but e.g. not with Logit Lens). We imagine it can be used beyond vision, across many other domains.
+Works with any HuggingFace model (LLMs, VLMs, etc.). No training required.
+
+## Getting Started
+
+```bash
+pip install latentlens
+```
+
+**Option A: Build your own index** — point to any HuggingFace model + a text corpus:
+
+```python
+import latentlens
+
+index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus="concepts.txt")
+index.save("llama3_index/")
+```
+
+**Option B: Load a pre-built index** (we provide indices for popular models):
+
+```python
+index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/latentlens-qwen2vl-embeddings")
+```
+
+**Search** — pass any hidden states `[num_tokens, hidden_dim]` and get back interpretable nearest neighbors:
+
+```python
+results = index.search(hidden_states, top_k=5)
+# results[i] = [Neighbor(token_str=' dog', similarity=0.42, contextual_layer=27), ...]
+```
+
+The search merges results across all contextual layers and ranks globally — this cross-layer merge is the core LatentLens insight.
 
 <p align="center">
   <img src="figures/method.png" width="80%" alt="LatentLens method overview">
 </p>
 
----
-
-## This Repository
-
-- [x] [Quickstart](#quick-start) for Qwen2-VL visual token interpretation
-- [x] General-purpose [`latentlens` library](#library-api) for any LLM
-- [x] [Paper reproduction](#reproducing-paper-results) scripts and configs
-
-1. **[Using LatentLens](#using-latentlens)** — Analyze continuous token representations in any LLM: go here for your custom use case, or to get started quickly
-2. **[Library API](#library-api)** — Build and search contextual embedding indices programmatically
-3. **[Reproducing Paper Results](#reproducing-paper-results)** — Reproduce our main results on visual tokens: go here if you want to reproduce our paper
-
----
-
-## Using LatentLens
-
-LatentLens works by comparing continuous token representations against a bank of contextual text embeddings. The core idea:
-
-1. **Build a contextual embedding bank** by running your LLM on text data
-2. **Find nearest neighbors** to interpret what the continuous tokens of your interest encode
-
-### Quick Start
-
-Try LatentLens on **Qwen2-VL-7B-Instruct** — an off-the-shelf VLM that requires no connector training. The script uses only `transformers` and `torch` (no `latentlens` package imports needed):
-
-```bash
-python quickstart.py                            # uses bundled example.png
-python quickstart.py --image path/to/image.jpg  # your own image
-```
-
-On first run, pre-computed contextual embeddings (~2GB per layer) are downloaded from [HuggingFace](https://huggingface.co/McGill-NLP/latentlens-qwen2vl-embeddings). The script:
-
-1. Loads Qwen2-VL and processes your image
-2. Extracts hidden states at layers 2, 8, and 27
-3. Finds nearest text neighbors in contextual embedding space
-4. Outputs a visualization .png file with the input image and sampled visual token interpretations 
-
-Customize with `--layers 1,4,8,16,24,27` and `--top-k 10`. Requires a GPU with >=24GB VRAM.
-
----
-
-## Library API
-
-The `latentlens` package provides a Python API for building and searching contextual embedding indices with any HuggingFace causal LM.
-
-### Build an index from a text corpus
+## Full Example: Interpret Hidden States
 
 ```python
-import latentlens
+import torch, latentlens
 
-# Build index (loads model, processes corpus, deduplicates by prefix)
-index = latentlens.build_index(
-    "meta-llama/Meta-Llama-3-8B",
-    corpus="my_corpus.txt",  # .txt, .csv, or list of strings
-)
-index.save("my_llama_index/")
-```
-
-### Load a pre-built index and search
-
-```python
-import latentlens
-
-# Load from HuggingFace Hub (pre-computed Qwen2-VL embeddings)
-index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/latentlens-qwen2vl-embeddings")
-
-# Or from a local directory
-index = latentlens.ContextualIndex.from_directory("my_llama_index/")
-
-# Search with your own hidden states [num_tokens, hidden_dim]
-results = index.search(hidden_states, top_k=5)
-# results[i] = [Neighbor(token_str=' dog', similarity=0.42, contextual_layer=27, ...), ...]
-```
-
-### Full pipeline: inference + search
-
-```python
-import torch
-import latentlens
-
+# Load any HuggingFace model
 model, tokenizer = latentlens.load_model("Qwen/Qwen2-7B")
+
+# Load or build a contextual index
 index = latentlens.ContextualIndex.from_directory("qwen_index/")
 
+# Get hidden states from your input
 inputs = tokenizer("a photo of a dog", return_tensors="pt").to("cuda")
 hidden_states = latentlens.get_hidden_states(model, inputs["input_ids"])
 
 # Interpret layer 27
 hs = torch.nn.functional.normalize(hidden_states[27].squeeze(0).float(), dim=-1)
 results = index.search(hs, top_k=5)
+
+for i, neighbors in enumerate(results):
+    token = tokenizer.decode(inputs["input_ids"][0, i])
+    nn = neighbors[0]
+    print(f"{token:>10} → {nn.token_str!r} (sim={nn.similarity:.2f}, layer={nn.contextual_layer})")
 ```
 
-### Custom Models
+## What You Need
 
-The library works with any HuggingFace `AutoModelForCausalLM`. For models not in `SUPPORTED_MODELS`, layer selection defaults to `auto_layers()` which picks early/mid/late layers automatically. To add explicit support for a new model:
+| Component | What it is | How to get it |
+|-----------|-----------|---------------|
+| **A model** | Any HuggingFace LLM or VLM | `latentlens.load_model("model_name")` |
+| **A contextual index** | Bank of text embeddings from that model | `build_index(model, corpus)` or `from_pretrained()` |
+| **Hidden states to interpret** | Your tokens of interest | `latentlens.get_hidden_states(model, input_ids)` |
 
-1. Add an entry to `latentlens.SUPPORTED_MODELS` with `num_hidden_layers`, `hidden_size`, and `default_layers`
-2. Open a PR to share with the community
+The index is built once and reused. A bundled `concepts.txt` (117k sentences covering 23k WordNet concepts) is included as a general-purpose corpus, or you can provide your own domain-specific text.
+
+## Quickstart Script (Qwen2-VL visual tokens)
+
+For a self-contained demo interpreting visual tokens in Qwen2-VL (no library install needed):
+
+```bash
+python quickstart.py                            # uses bundled example.png
+python quickstart.py --image path/to/image.jpg  # your own image
+```
+
+Pre-computed contextual embeddings are downloaded automatically from [HuggingFace](https://huggingface.co/McGill-NLP/latentlens-qwen2vl-embeddings). Requires a GPU with >=24GB VRAM.
 
 ---
 
