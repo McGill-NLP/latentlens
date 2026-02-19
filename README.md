@@ -34,9 +34,12 @@ index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/latentlens-qwen2v
 ```python
 results = index.search(hidden_states, top_k=5)
 # results[i] = [Neighbor(token_str=' dog', similarity=0.42, contextual_layer=27), ...]
+
+# Or search only specific contextual layers:
+results = index.search(hidden_states, top_k=5, layers=[8, 27])
 ```
 
-The search merges results across all contextual layers and ranks globally — this cross-layer merge is the core LatentLens insight.
+The search merges results across all contextual layers and ranks globally — this cross-layer merge is the core LatentLens insight. Queries are automatically L2-normalized.
 
 <p align="center">
   <img src="figures/method.png" width="80%" alt="LatentLens method overview">
@@ -45,7 +48,7 @@ The search merges results across all contextual layers and ranks globally — th
 ## Full Example: Interpret Hidden States
 
 ```python
-import torch, latentlens
+import latentlens
 
 # Load any HuggingFace model
 model, tokenizer = latentlens.load_model("Qwen/Qwen2-7B")
@@ -54,12 +57,12 @@ model, tokenizer = latentlens.load_model("Qwen/Qwen2-7B")
 index = latentlens.ContextualIndex.from_directory("qwen_index/")
 
 # Get hidden states from your input
+# hidden_states[0] = input embeddings, hidden_states[i] = output of transformer block i
 inputs = tokenizer("a photo of a dog", return_tensors="pt").to("cuda")
 hidden_states = latentlens.get_hidden_states(model, inputs["input_ids"])
 
-# Interpret layer 27
-hs = torch.nn.functional.normalize(hidden_states[27].squeeze(0).float(), dim=-1)
-results = index.search(hs, top_k=5)
+# Interpret layer 27 — search auto-normalizes the query
+results = index.search(hidden_states[27].squeeze(0), top_k=5)
 
 for i, neighbors in enumerate(results):
     token = tokenizer.decode(inputs["input_ids"][0, i])
@@ -76,6 +79,8 @@ for i, neighbors in enumerate(results):
 | **Hidden states to interpret** | Your tokens of interest | `latentlens.get_hidden_states(model, input_ids)` |
 
 The index is built once and reused. A bundled `concepts.txt` (117k sentences covering 23k WordNet concepts) is included as a general-purpose corpus, or you can provide your own domain-specific text.
+
+**Tip:** If you already have a loaded model, pass it directly to avoid loading twice: `build_index("model", corpus, model=model, tokenizer=tokenizer)`
 
 ## Quickstart Script (Qwen2-VL visual tokens)
 

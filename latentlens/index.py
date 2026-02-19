@@ -103,7 +103,8 @@ class ContextualIndex:
         Parameters
         ----------
         query : Tensor of shape ``[num_tokens, hidden_dim]``
-            L2-normalized query vectors (e.g., hidden states from an LLM layer).
+            Query vectors (e.g., hidden states from an LLM layer).
+            Automatically L2-normalized if not already.
         top_k : int
             Number of neighbors per query token.
         layers : sequence of int, optional
@@ -117,6 +118,8 @@ class ContextualIndex:
         """
         if query.ndim == 1:
             query = query.unsqueeze(0)
+
+        query = F.normalize(query.float(), dim=-1)
 
         search_layers = sorted(layers) if layers is not None else self.available_layers
 

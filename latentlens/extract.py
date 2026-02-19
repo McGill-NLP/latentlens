@@ -88,6 +88,8 @@ def build_index(
     device: Optional[Union[str, torch.device]] = None,
     dtype: torch.dtype = torch.float32,
     show_progress: bool = True,
+    model=None,
+    tokenizer=None,
 ) -> ContextualIndex:
     """
     Build a :class:`ContextualIndex` by running a causal LM on a text corpus.
@@ -111,14 +113,22 @@ def build_index(
         Model weight dtype (default ``torch.float32``).
     show_progress : bool
         Show a ``tqdm`` progress bar.
+    model : PreTrainedModel, optional
+        Pass an already-loaded model to avoid loading it again.
+        If provided, ``tokenizer`` must also be given.
+    tokenizer : PreTrainedTokenizer, optional
+        Pass an already-loaded tokenizer. Required if ``model`` is provided.
 
     Returns
     -------
     ContextualIndex
     """
     # ── Load model ────────────────────────────────────────────────────────
-    model, tokenizer = load_model(model_name, device=device, dtype=dtype)
-    dev = next(model.parameters()).device
+    if model is not None and tokenizer is not None:
+        dev = next(model.parameters()).device
+    else:
+        model, tokenizer = load_model(model_name, device=device, dtype=dtype)
+        dev = next(model.parameters()).device
 
     # ── Determine layers ──────────────────────────────────────────────────
     n_layers = get_num_hidden_layers(model)

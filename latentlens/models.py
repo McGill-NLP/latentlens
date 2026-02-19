@@ -86,11 +86,11 @@ def load_model(
     # for VLMs and other architectures
     try:
         model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
+            model_name, dtype=dtype, trust_remote_code=trust_remote_code
         )
     except (ValueError, KeyError):
         model = AutoModel.from_pretrained(
-            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
+            model_name, dtype=dtype, trust_remote_code=trust_remote_code
         )
     model = model.to(device).eval()
 
