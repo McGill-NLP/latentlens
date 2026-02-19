@@ -185,13 +185,25 @@ class ContextualIndex:
 
     # ── I/O ───────────────────────────────────────────────────────────────
 
-    def save(self, path: Union[str, Path]) -> None:
+    def save(
+        self,
+        path: Union[str, Path],
+        storage_dtype: torch.dtype = torch.float16,
+    ) -> None:
         """
         Save the index to a directory with one sub-directory per layer.
 
         Each layer is saved as ``layer_N/embeddings_cache.pt`` containing
         ``{"embeddings": Tensor, "metadata": list[dict]}``, compatible with
         the cache format used by ``quickstart.py`` and ``extract_embeddings.py``.
+
+        Parameters
+        ----------
+        path : str or Path
+            Output directory.
+        storage_dtype : torch.dtype
+            Dtype for stored embeddings (default ``torch.float16`` for 2x
+            savings).  Embeddings are cast back to float32 on load.
         """
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
@@ -204,7 +216,7 @@ class ContextualIndex:
             layer_dir.mkdir(parents=True, exist_ok=True)
             torch.save(
                 {
-                    "embeddings": layer_data["embeddings"].cpu(),
+                    "embeddings": layer_data["embeddings"].cpu().to(storage_dtype),
                     "metadata": layer_data["metadata"],
                 },
                 layer_dir / "embeddings_cache.pt",
