@@ -4,6 +4,22 @@ Tracks development progress, decisions, and issues for the public release.
 
 ---
 
+## 2026-02-19 — Blind usability test + fixes
+
+**Usability test:** Fresh Claude instance used the library with zero prior context, given only the README and a use case (interpret Pythia-1.4B hidden states using concepts.txt). Results:
+- **Zero API friction** — figured out full pipeline from README alone
+- **117k sentences through Pythia-1.4B in ~7 minutes** on A6000 (fp16, batch_size=32)
+- Script ran first try, produced correct results
+
+**4 issues found and fixed (commit `477c712`):**
+1. `search()` now auto-normalizes queries — users no longer need manual `F.normalize()`
+2. `build_index()` accepts `model=` and `tokenizer=` to avoid loading the model twice
+3. README now documents layer indexing convention (`hidden_states[0]` = embeddings, `[i]` = block i output)
+4. README documents `search(layers=...)` parameter for per-layer analysis
+5. Fixed `torch_dtype` deprecation warning → use `dtype=` in `from_pretrained()`
+
+---
+
 ## 2026-02-18 — VLM support + concepts corpus + README restructure
 
 **README restructured (commit `983779e`):**
