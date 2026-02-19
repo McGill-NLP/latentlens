@@ -26,7 +26,7 @@ index.save("llama3_index/")
 **Option B: Load a pre-built index** (we provide indices for popular models):
 
 ```python
-index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/latentlens-qwen2vl-embeddings")
+index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/contextual_embeddings-llama3.1-8b")
 ```
 
 **Search** — pass any hidden states `[num_tokens, hidden_dim]` and get back interpretable nearest neighbors:
@@ -82,6 +82,25 @@ The index is built once and reused. A bundled `concepts.txt` (117k sentences cov
 
 **Tip:** If you already have a loaded model, pass it directly to avoid loading twice: `build_index("model", corpus, model=model, tokenizer=tokenizer)`
 
+## Pre-built Indices
+
+We provide pre-computed contextual embeddings for popular LLMs, built from 117k WordNet concept sentences across 8 layers each:
+
+| Model | HuggingFace Repo | Layers | Size |
+|-------|-----------------|--------|------|
+| **Llama-3.1-8B** | [`McGill-NLP/contextual_embeddings-llama3.1-8b`](https://huggingface.co/McGill-NLP/contextual_embeddings-llama3.1-8b) | 1, 2, 4, 8, 16, 24, 30, 31 | 32 GB |
+| **Gemma-2-9B** | [`McGill-NLP/contextual_embeddings-gemma2-9b`](https://huggingface.co/McGill-NLP/contextual_embeddings-gemma2-9b) | 1, 2, 4, 8, 16, 24, 40, 41 | 15 GB |
+| **Qwen2.5-7B** | [`McGill-NLP/contextual_embeddings-qwen2.5-7b`](https://huggingface.co/McGill-NLP/contextual_embeddings-qwen2.5-7b) | 1, 2, 4, 8, 16, 24, 26, 27 | 28 GB |
+
+Load specific layers to save memory and download time:
+
+```python
+# Load only early + late layers (~2 layers instead of 8)
+index = latentlens.ContextualIndex.from_pretrained(
+    "McGill-NLP/contextual_embeddings-llama3.1-8b", layers=[1, 31]
+)
+```
+
 ## Quickstart Script (Qwen2-VL visual tokens)
 
 For a self-contained demo interpreting visual tokens in Qwen2-VL (no library install needed):
@@ -91,7 +110,7 @@ python quickstart.py                            # uses bundled example.png
 python quickstart.py --image path/to/image.jpg  # your own image
 ```
 
-Pre-computed contextual embeddings are downloaded automatically from [HuggingFace](https://huggingface.co/McGill-NLP/latentlens-qwen2vl-embeddings). Requires a GPU with >=24GB VRAM.
+Pre-computed contextual embeddings are downloaded automatically from [HuggingFace](https://huggingface.co/McGill-NLP). Requires a GPU with >=24GB VRAM.
 
 ---
 
