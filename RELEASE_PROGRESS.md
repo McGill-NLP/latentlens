@@ -4,7 +4,14 @@ Tracks development progress, decisions, and issues for the public release.
 
 ---
 
-## 2026-02-18 — VLM support + concepts corpus + open TODOs
+## 2026-02-18 — VLM support + concepts corpus + README restructure
+
+**README restructured (commit `983779e`):**
+- Leads with `pip install` → Option A (build index) / Option B (pre-built) → Search
+- Concise getting-started flow so users understand usage in a few lines
+- Quickstart script moved below library usage; reproduction section unchanged
+
+**VLM support (commit `202035d`):**
 
 **VLM support (commit `202035d`):**
 - `load_model()` now tries `AutoModelForCausalLM`, falls back to `AutoModel` for VLMs
@@ -19,7 +26,7 @@ Tracks development progress, decisions, and issues for the public release.
 **53/53 tests pass** (6 model architectures: distilgpt2, tiny-gpt2, pythia-70m, opt-125m, Qwen2-VL-2B, SmolVLM-256M).
 
 ### Open TODOs
-- [ ] User provides a curated `concepts.txt` to replace/refine the current one
+- [x] ~~User provides a curated `concepts.txt`~~ — done (117k sentences, WordNet-derived)
 - [ ] Pre-compute indices for popular models (OLMo, LLaMA, Qwen2, Qwen2-VL) using concepts.txt, host on McGill-NLP HuggingFace
 - [ ] Write a feature/spec doc explaining user-facing capabilities in prose
 - [ ] Relax `torch<2.5.0` upper bound in pyproject.toml (blocks users on newer PyTorch)
