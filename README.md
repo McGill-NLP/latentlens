@@ -70,6 +70,29 @@ for i, neighbors in enumerate(results):
     print(f"{token:>10} → {nn.token_str!r} (sim={nn.similarity:.2f}, layer={nn.contextual_layer})")
 ```
 
+### VLM Example: Interpret Visual Tokens
+
+For VLMs, pass model-specific inputs (e.g., `pixel_values`) as keyword arguments to `get_hidden_states()`:
+
+```python
+import latentlens
+from transformers import AutoProcessor
+
+# Load a VLM and its processor
+model, tokenizer = latentlens.load_model("Qwen/Qwen2-VL-7B-Instruct", dtype=torch.float16)
+processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
+
+# Process image + text
+inputs = processor(images=[image], text="Describe this image.", return_tensors="pt").to("cuda")
+
+# Extract hidden states — pass all processor outputs
+hidden_states = latentlens.get_hidden_states(model, **inputs)
+
+# Find vision token positions and interpret them
+# hidden_states[layer][0, vision_start:vision_end, :] contains the visual tokens
+results = index.search(hidden_states[27][0, vision_start:vision_end, :], top_k=5)
+```
+
 ## What You Need
 
 | Component | What it is | How to get it |

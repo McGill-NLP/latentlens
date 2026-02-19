@@ -16,6 +16,12 @@ from typing import Optional, Union
 import torch
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
+# VLM auto-class, available in transformers >= 4.36
+try:
+    from transformers import AutoModelForVision2Seq
+except ImportError:
+    AutoModelForVision2Seq = None
+
 
 # Known model configurations.  ``num_hidden_layers`` and ``hidden_size`` are
 # informational (the actual values are read from model.config at runtime).
@@ -82,16 +88,19 @@ def load_model(
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Try AutoModelForCausalLM first (standard LLMs), fall back to AutoModel
-    # for VLMs and other architectures
+    # Try loading in order: CausalLM (standard LLMs) → Vision2Seq (VLMs like
+    # Qwen2-VL, LLaVA, Molmo) → AutoModel (catch-all)
+    load_kwargs = dict(torch_dtype=dtype, trust_remote_code=trust_remote_code)
     try:
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
-        )
-    except (ValueError, KeyError):
-        model = AutoModel.from_pretrained(
-            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
-        )
+        model = AutoModelForCausalLM.from_pretrained(model_name, **load_kwargs)
+    except (ValueError, KeyError, TypeError):
+        if AutoModelForVision2Seq is not None:
+            try:
+                model = AutoModelForVision2Seq.from_pretrained(model_name, **load_kwargs)
+            except (ValueError, KeyError, TypeError):
+                model = AutoModel.from_pretrained(model_name, **load_kwargs)
+        else:
+            model = AutoModel.from_pretrained(model_name, **load_kwargs)
     model = model.to(device).eval()
 
     return model, tokenizer
@@ -117,20 +126,28 @@ def get_num_hidden_layers(model) -> int:
 
 def get_hidden_states(
     model,
-    input_ids: torch.Tensor,
+    input_ids: Optional[torch.Tensor] = None,
     attention_mask: Optional[torch.Tensor] = None,
+    **kwargs,
 ) -> tuple[torch.Tensor, ...]:
     """
     Run a forward pass and return all hidden states (including the input embedding layer).
+
+    For VLMs, pass model-specific inputs (e.g., ``pixel_values``,
+    ``image_grid_thw``) as keyword arguments — they are forwarded to
+    the model's ``forward()`` method.
 
     Parameters
     ----------
     model : PreTrainedModel
         A HuggingFace model in eval mode (LLM, VLM, etc.).
-    input_ids : Tensor of shape ``[batch, seq_len]``
+    input_ids : Tensor of shape ``[batch, seq_len]``, optional
         Tokenized input IDs.
     attention_mask : Tensor, optional
         Attention mask (1 = real token, 0 = padding).
+    **kwargs
+        Additional keyword arguments passed to ``model.forward()``
+        (e.g., ``pixel_values`` for VLMs).
 
     Returns
     -------
@@ -144,5 +161,6 @@ def get_hidden_states(
             input_ids=input_ids,
             attention_mask=attention_mask,
             output_hidden_states=True,
+            **kwargs,
         )
     return outputs.hidden_states
