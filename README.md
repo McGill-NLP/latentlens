@@ -74,25 +74,30 @@ for i, neighbors in enumerate(results):
 
 ### VLM Example: Interpret Visual Tokens
 
-For VLMs, pass model-specific inputs (e.g., `pixel_values`) as keyword arguments to `get_hidden_states()`:
+For VLMs, use the VLM's processor to prepare inputs and pass everything to `get_hidden_states()`:
 
 ```python
+import torch
 import latentlens
 from transformers import AutoProcessor
+from PIL import Image
 
 # Load a VLM and its processor
-model, tokenizer = latentlens.load_model("Qwen/Qwen2-VL-7B-Instruct", dtype=torch.float16)
-processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
+model, tokenizer = latentlens.load_model("Qwen/Qwen2.5-VL-7B-Instruct", dtype=torch.float16)
+processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
+
+# Load pre-built index for this VLM
+index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/contextual_embeddings-qwen2.5-vl-7b")
 
 # Process image + text
+image = Image.open("example.jpg")
 inputs = processor(images=[image], text="Describe this image.", return_tensors="pt").to("cuda")
 
 # Extract hidden states — pass all processor outputs
 hidden_states = latentlens.get_hidden_states(model, **inputs)
 
-# Find vision token positions and interpret them
-# hidden_states[layer][0, vision_start:vision_end, :] contains the visual tokens
-results = index.search(hidden_states[27][0, vision_start:vision_end, :], top_k=5)
+# Interpret the last layer's hidden states for all tokens
+results = index.search(hidden_states[27].squeeze(0), top_k=5)
 ```
 
 ## What You Need
@@ -105,7 +110,7 @@ results = index.search(hidden_states[27][0, vision_start:vision_end, :], top_k=5
 
 The index is built once and reused. See [Bundled Corpus](#bundled-corpus-conceptstxt) below for details on the included corpus, or provide your own domain-specific text.
 
-**Tip:** If you already have a loaded model, pass it directly to avoid loading twice: `build_index("model", corpus, model=model, tokenizer=tokenizer)`
+**Tip:** If you already have a loaded model, pass it directly to avoid loading twice: `build_index("meta-llama/Meta-Llama-3-8B", corpus="concepts.txt", model=model, tokenizer=tokenizer)`
 
 ## Bundled Corpus: `concepts.txt`
 
@@ -353,6 +358,15 @@ python reproduce/scripts/evaluate/aggregate_results.py \
 > - **DINOv2 models** (`olmo-dino`, `llama-dino`, `qwen-dino`): Pass `--model-name` containing "dinov2" (e.g., `--model-name olmo-dino`).
 > - **Qwen2-VL**: Pass `--model-name qwen2vl`.
 
+### Model Configurations (Paper)
+
+| Model | LLM Layers | Vision Patches | Layers Analyzed |
+|-------|------------|----------------|-----------------|
+| OLMo-7B / LLaMA3-8B | 32 | 576 (24×24) | 0, 1, 2, 4, 8, 16, 24, 30, 31 |
+| Qwen2-7B / Qwen2-VL | 28 | 729 (27×27) | 0, 1, 2, 4, 8, 16, 24, 26, 27 |
+
+**Note:** SigLIP uses 27×27 patches (729 total), while CLIP and DINOv2 use 24×24 (576 total).
+
 ### Reproduce Main Results (all 9 models)
 
 ```bash
@@ -366,20 +380,10 @@ python reproduce/scripts/evaluate/aggregate_results.py \
 
 ---
 
-## Model Configurations
-
-| Model | LLM Layers | Vision Patches | Layers Analyzed |
-|-------|------------|----------------|-----------------|
-| OLMo-7B / LLaMA3-8B | 32 | 576 (24×24) | 0, 1, 2, 4, 8, 16, 24, 30, 31 |
-| Qwen2-7B / Qwen2-VL | 28 | 729 (27×27) | 0, 1, 2, 4, 8, 16, 24, 26, 27 |
-
-**Note:** SigLIP uses 27×27 patches (729 total), while CLIP and DINOv2 use 24×24 (576 total).
-
----
-
 ## Project Structure
 
 ```
+├── concepts.txt              # Bundled corpus (117k sentences, 23k WordNet concepts)
 ├── quickstart.py             # Try LatentLens in 5 minutes (standalone)
 ├── latentlens/               # Library: build & search contextual indices
 │   ├── index.py              # ContextualIndex, Neighbor, search, save/load
