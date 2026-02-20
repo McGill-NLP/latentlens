@@ -19,8 +19,12 @@ pip install latentlens
 ```python
 import latentlens
 
+# Use the bundled concepts.txt (117k sentences, 23k WordNet concepts)
 index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus="concepts.txt")
 index.save("llama3_index/")
+
+# Or use your own domain-specific corpus
+index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus="my_texts.txt")
 ```
 
 **Option B: Load a pre-built index** (we provide indices for popular models):
@@ -99,13 +103,27 @@ results = index.search(hidden_states[27][0, vision_start:vision_end, :], top_k=5
 | **A contextual index** | Bank of text embeddings from that model | `build_index(model, corpus)` or `from_pretrained()` |
 | **Hidden states to interpret** | Your tokens of interest | `latentlens.get_hidden_states(model, input_ids)` |
 
-The index is built once and reused. A bundled `concepts.txt` (117k sentences covering 23k WordNet concepts) is included as a general-purpose corpus, or you can provide your own domain-specific text.
+The index is built once and reused. See [Bundled Corpus](#bundled-corpus-conceptstxt) below for details on the included corpus, or provide your own domain-specific text.
 
 **Tip:** If you already have a loaded model, pass it directly to avoid loading twice: `build_index("model", corpus, model=model, tokenizer=tokenizer)`
 
+## Bundled Corpus: `concepts.txt`
+
+We include `concepts.txt` — a general-purpose corpus of **117k sentences covering 23k WordNet concepts** (5 sentences per concept at varying lengths). All [pre-built indices](#pre-built-indices) are built from this corpus using prefix deduplication (identical prefixes produce identical embeddings in causal LMs, so we store each unique prefix only once).
+
+You can also provide your own domain-specific corpus as a `.txt` file (one sentence per line), a `.csv` file (first column), or a Python list of strings:
+
+```python
+# Custom corpus
+index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus="my_domain_texts.txt")
+index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus=["sentence 1", "sentence 2"])
+```
+
+> **Relation to the paper:** The original LatentLens paper ([Krojer et al., 2026](https://arxiv.org/abs/2602.00462)) used ~3M Visual Genome phrases (`reproduce/vg_phrases.txt`) — a corpus tailored to interpreting visual tokens in VLMs. The library instead uses `concepts.txt`, which provides broad coverage of concepts humans care about, making it suitable for interpreting *any* LLM-based model, not just VLMs. We validate this improved corpus and extraction pipeline in a forthcoming companion paper. To reproduce the original paper results exactly, see [Reproducing Paper Results](#reproducing-paper-results).
+
 ## Pre-built Indices
 
-We provide pre-computed contextual embeddings for popular LLMs and VLMs, built from 117k WordNet concept sentences across 8 layers each. Browse all indices in our [HuggingFace Collection](https://huggingface.co/collections/McGill-NLP/latentlens-contextual-embeddings-6997a0e5a50d7999075ffef6).
+We provide pre-computed contextual embeddings for popular LLMs and VLMs, built from the bundled `concepts.txt` corpus across 8 layers each. Browse all indices in our [HuggingFace Collection](https://huggingface.co/collections/McGill-NLP/latentlens-contextual-embeddings-6997a0e5a50d7999075ffef6).
 
 **LLMs:**
 
@@ -146,6 +164,8 @@ Pre-computed contextual embeddings are downloaded automatically from [HuggingFac
 ---
 
 ## Reproducing Paper Results
+
+> **Note:** This section reproduces the original paper, which uses a different corpus (~3M Visual Genome phrases) and extraction pipeline (reservoir sampling, float8 storage) than the library above. The library's `build_index()` and pre-built indices use `concepts.txt` instead.
 
 This section walks through reproducing our main results on visual token interpretability in VLMs.
 
