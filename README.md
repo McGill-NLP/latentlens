@@ -4,7 +4,7 @@
 [![Demo](https://img.shields.io/badge/Demo-Interactive-orange.svg)](https://bennokrojer.com/vlm_interp_demo/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**LatentLens** interprets what hidden representations in LLMs and VLMs encode by finding their nearest neighbors in a bank of contextual text embeddings. Unlike Logit Lens (which projects to vocabulary space), LatentLens compares against embeddings *in context* — yielding highly interpretable results, especially for continuous tokens like vision tokens that have no vocabulary entry.
+**LatentLens** interprets what hidden representations in LLM-based models (LLMs, VLMs, ...) encode by finding their nearest neighbors in a bank of contextual text embeddings. Unlike Logit Lens (which projects to vocabulary space), LatentLens compares against embeddings *in context* — yielding highly interpretable results.
 
 Works with any HuggingFace model (LLMs, VLMs, etc.). No training required.
 
@@ -14,7 +14,7 @@ Works with any HuggingFace model (LLMs, VLMs, etc.). No training required.
 pip install latentlens
 ```
 
-**Option A: Build your own index** — point to any HuggingFace model + a text corpus:
+**Option A: Build your own index of contextual embeddings** — point to any HuggingFace model + a text corpus:
 
 ```python
 import latentlens
@@ -38,8 +38,6 @@ results = index.search(hidden_states, top_k=5)
 # Or search only specific contextual layers:
 results = index.search(hidden_states, top_k=5, layers=[8, 27])
 ```
-
-The search merges results across all contextual layers and ranks globally — this cross-layer merge is the core LatentLens insight. Queries are automatically L2-normalized.
 
 <p align="center">
   <img src="figures/method.png" width="80%" alt="LatentLens method overview">
