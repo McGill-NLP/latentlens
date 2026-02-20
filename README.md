@@ -53,10 +53,10 @@ results = index.search(hidden_states, top_k=5, layers=[8, 27])
 import latentlens
 
 # Load any HuggingFace model
-model, tokenizer = latentlens.load_model("Qwen/Qwen2-7B")
+model, tokenizer = latentlens.load_model("Qwen/Qwen2.5-7B")
 
-# Load or build a contextual index
-index = latentlens.ContextualIndex.from_directory("qwen_index/")
+# Load a pre-built index (or build your own — see Getting Started)
+index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/contextual_embeddings-qwen2.5-7b")
 
 # Get hidden states from your input
 # hidden_states[0] = input embeddings, hidden_states[i] = output of transformer block i
