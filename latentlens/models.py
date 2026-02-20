@@ -14,7 +14,12 @@ from __future__ import annotations
 from typing import Optional, Union
 
 import torch
+import transformers
+from packaging.version import Version
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
+
+# transformers >= 4.55 renamed torch_dtype → dtype
+_DTYPE_KEY = "dtype" if Version(transformers.__version__) >= Version("4.55.0") else "torch_dtype"
 
 # VLM auto-class: prefer AutoModelForImageTextToText (transformers >= 4.55),
 # fall back to AutoModelForVision2Seq (transformers 4.36–4.54)
@@ -94,7 +99,7 @@ def load_model(
 
     # Try loading in order: CausalLM (standard LLMs) → VLM auto-class
     # (Qwen2-VL, LLaVA, Molmo, ...) → AutoModel (catch-all)
-    load_kwargs = dict(torch_dtype=dtype, trust_remote_code=trust_remote_code)
+    load_kwargs = dict(trust_remote_code=trust_remote_code, **{_DTYPE_KEY: dtype})
     try:
         model = AutoModelForCausalLM.from_pretrained(model_name, **load_kwargs)
     except (ValueError, KeyError, TypeError):
