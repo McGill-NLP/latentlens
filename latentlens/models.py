@@ -16,11 +16,15 @@ from typing import Optional, Union
 import torch
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
-# VLM auto-class, available in transformers >= 4.36
+# VLM auto-class: prefer AutoModelForImageTextToText (transformers >= 4.55),
+# fall back to AutoModelForVision2Seq (transformers 4.36–4.54)
 try:
-    from transformers import AutoModelForVision2Seq
+    from transformers import AutoModelForImageTextToText as _VLMAutoClass
 except ImportError:
-    AutoModelForVision2Seq = None
+    try:
+        from transformers import AutoModelForVision2Seq as _VLMAutoClass
+    except ImportError:
+        _VLMAutoClass = None
 
 
 # Known model configurations.  ``num_hidden_layers`` and ``hidden_size`` are
@@ -88,15 +92,15 @@ def load_model(
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Try loading in order: CausalLM (standard LLMs) → Vision2Seq (VLMs like
-    # Qwen2-VL, LLaVA, Molmo) → AutoModel (catch-all)
+    # Try loading in order: CausalLM (standard LLMs) → VLM auto-class
+    # (Qwen2-VL, LLaVA, Molmo, ...) → AutoModel (catch-all)
     load_kwargs = dict(torch_dtype=dtype, trust_remote_code=trust_remote_code)
     try:
         model = AutoModelForCausalLM.from_pretrained(model_name, **load_kwargs)
     except (ValueError, KeyError, TypeError):
-        if AutoModelForVision2Seq is not None:
+        if _VLMAutoClass is not None:
             try:
-                model = AutoModelForVision2Seq.from_pretrained(model_name, **load_kwargs)
+                model = _VLMAutoClass.from_pretrained(model_name, **load_kwargs)
             except (ValueError, KeyError, TypeError):
                 model = AutoModel.from_pretrained(model_name, **load_kwargs)
         else:

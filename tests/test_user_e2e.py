@@ -77,6 +77,10 @@ class TestUserE2E:
         """User points to a .txt file and distilgpt2."""
         _build_and_validate("distilgpt2", str(CORPUS_PATH), layers=[1, 3, 5], device="cpu")
 
+    @pytest.mark.skipif(
+        torch.__version__ < "2.6",
+        reason="Model uses .bin format; transformers >= 4.55 requires torch >= 2.6 for torch.load (CVE-2025-32434)",
+    )
     def test_tiny_gpt2(self):
         """Smallest possible GPT-2 variant."""
         _build_and_validate("sshleifer/tiny-gpt2", str(CORPUS_PATH), layers=[1, 2], device="cpu")
@@ -85,6 +89,10 @@ class TestUserE2E:
         """GPT-NeoX architecture (EleutherAI Pythia)."""
         _build_and_validate("EleutherAI/pythia-70m", str(CORPUS_PATH), layers=[1, 3, 5], device="cpu")
 
+    @pytest.mark.skipif(
+        torch.__version__ < "2.6",
+        reason="Model uses .bin format; transformers >= 4.55 requires torch >= 2.6 for torch.load (CVE-2025-32434)",
+    )
     def test_opt_125m(self):
         """OPT architecture (Meta)."""
         _build_and_validate("facebook/opt-125m", str(CORPUS_PATH), layers=[1, 5, 11], device="cpu")
