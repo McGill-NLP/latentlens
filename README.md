@@ -107,13 +107,23 @@ The index is built once and reused. A bundled `concepts.txt` (117k sentences cov
 
 ## Pre-built Indices
 
-We provide pre-computed contextual embeddings for popular LLMs, built from 117k WordNet concept sentences across 8 layers each:
+We provide pre-computed contextual embeddings for popular LLMs and VLMs, built from 117k WordNet concept sentences across 8 layers each. Browse all indices in our [HuggingFace Collection](https://huggingface.co/collections/McGill-NLP/latentlens-contextual-embeddings-6997a0e5a50d7999075ffef6).
+
+**LLMs:**
 
 | Model | HuggingFace Repo | Layers | Size |
 |-------|-----------------|--------|------|
 | **Llama-3.1-8B** | [`McGill-NLP/contextual_embeddings-llama3.1-8b`](https://huggingface.co/McGill-NLP/contextual_embeddings-llama3.1-8b) | 1, 2, 4, 8, 16, 24, 30, 31 | 32 GB |
 | **Gemma-2-9B** | [`McGill-NLP/contextual_embeddings-gemma2-9b`](https://huggingface.co/McGill-NLP/contextual_embeddings-gemma2-9b) | 1, 2, 4, 8, 16, 24, 40, 41 | 15 GB |
 | **Qwen2.5-7B** | [`McGill-NLP/contextual_embeddings-qwen2.5-7b`](https://huggingface.co/McGill-NLP/contextual_embeddings-qwen2.5-7b) | 1, 2, 4, 8, 16, 24, 26, 27 | 28 GB |
+
+**VLMs** (text-only forward passes through the VLM's finetuned LLM backbone):
+
+| Model | HuggingFace Repo | Layers | Size |
+|-------|-----------------|--------|------|
+| **Qwen2.5-VL-7B** | [`McGill-NLP/contextual_embeddings-qwen2.5-vl-7b`](https://huggingface.co/McGill-NLP/contextual_embeddings-qwen2.5-vl-7b) | 1, 2, 4, 8, 16, 24, 26, 27 | 28 GB |
+| **Qwen3-VL-8B** | [`McGill-NLP/contextual_embeddings-qwen3-vl-8b`](https://huggingface.co/McGill-NLP/contextual_embeddings-qwen3-vl-8b) | 1, 2, 4, 8, 16, 24, 34, 35 | 32 GB |
+| **Molmo2-8B** | [`McGill-NLP/contextual_embeddings-molmo2-8b`](https://huggingface.co/McGill-NLP/contextual_embeddings-molmo2-8b) | 1, 2, 4, 8, 16, 24, 34, 35 | 32 GB |
 
 Load specific layers to save memory and download time:
 
