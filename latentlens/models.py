@@ -32,11 +32,15 @@ except ImportError:
         _VLMAutoClass = None
 
 
-# Known model configurations.  ``num_hidden_layers`` and ``hidden_size`` are
-# informational (the actual values are read from model.config at runtime).
-# ``default_layers`` is used by :func:`~latentlens.extract.auto_layers` when
-# no explicit layer list is given.
-SUPPORTED_MODELS: dict[str, dict] = {
+# Default layer configurations for known models.  ``num_hidden_layers`` and
+# ``hidden_size`` are informational (the actual values are read from
+# model.config at runtime).  ``default_layers`` is used by
+# :func:`~latentlens.extract.auto_layers` when no explicit layer list is given.
+#
+# NOTE: ``load_model()`` and ``build_index()`` work with **any** HuggingFace
+# model — this dict only provides curated default layers for a few models.
+# For unlisted models, layers are chosen automatically via ``auto_layers()``.
+MODEL_DEFAULTS: dict[str, dict] = {
     "allenai/OLMo-7B-1024-preview": {
         "num_hidden_layers": 32,
         "hidden_size": 4096,

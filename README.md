@@ -59,7 +59,8 @@ model, tokenizer = latentlens.load_model("Qwen/Qwen2.5-7B")
 index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/contextual_embeddings-qwen2.5-7b")
 
 # Get hidden states from your input
-# hidden_states[0] = input embeddings, hidden_states[i] = output of transformer block i
+# hidden_states[0] = input embeddings
+# hidden_states[1] through hidden_states[N] = transformer layer outputs (N = num_hidden_layers)
 inputs = tokenizer("a photo of a dog", return_tensors="pt").to("cuda")
 hidden_states = latentlens.get_hidden_states(model, inputs["input_ids"])
 
@@ -388,7 +389,7 @@ python reproduce/scripts/evaluate/aggregate_results.py \
 ├── latentlens/               # Library: build & search contextual indices
 │   ├── index.py              # ContextualIndex, Neighbor, search, save/load
 │   ├── extract.py            # build_index(), corpus loading, prefix dedup
-│   └── models.py             # load_model(), get_hidden_states(), SUPPORTED_MODELS
+│   └── models.py             # load_model(), get_hidden_states(), MODEL_DEFAULTS
 ├── molmo/                    # Molmo VLM infrastructure (for reproduction)
 │   ├── model.py              # Model architecture with layer hooks
 │   ├── config.py             # Configuration classes
