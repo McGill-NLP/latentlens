@@ -75,7 +75,8 @@ for i, neighbors in enumerate(results):
 
 ### VLM Example: Interpret Visual Tokens
 
-For VLMs, use the VLM's processor to prepare inputs and pass everything to `get_hidden_states()`:
+For VLMs like Qwen2.5-VL, use `apply_chat_template()` to format the input — this inserts
+the image placeholder tokens that tell the model where visual features go:
 
 ```python
 import torch
@@ -90,9 +91,14 @@ processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
 # Load pre-built index for this VLM
 index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/contextual_embeddings-qwen2.5-vl-7b")
 
-# Process image + text
+# Process image + text — apply_chat_template inserts the image placeholder tokens
 image = Image.open("example.jpg")
-inputs = processor(images=[image], text="Describe this image.", return_tensors="pt").to("cuda")
+messages = [{"role": "user", "content": [
+    {"type": "image", "image": image},
+    {"type": "text", "text": "Describe this image."},
+]}]
+text_prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+inputs = processor(images=[image], text=[text_prompt], return_tensors="pt", padding=True).to("cuda")
 
 # Extract hidden states — pass all processor outputs
 hidden_states = latentlens.get_hidden_states(model, **inputs)
