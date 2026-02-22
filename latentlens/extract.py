@@ -61,6 +61,11 @@ def load_corpus(source: Union[str, Path, list[str]]) -> list[str]:
         return source
 
     path = Path(source)
+    # Resolve bundled corpus: "concepts.txt" → package data
+    if not path.is_absolute() and not path.exists():
+        bundled = Path(__file__).parent / "data" / path.name
+        if bundled.exists():
+            path = bundled
     if path.suffix == ".csv":
         texts: list[str] = []
         with open(path, newline="", encoding="utf-8") as f:

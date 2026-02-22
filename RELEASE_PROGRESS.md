@@ -45,10 +45,22 @@ Tracks development progress, decisions, and issues for the public release.
 - [x] ~~User provides a curated `concepts.txt`~~ — done (117k sentences, WordNet-derived)
 - [ ] Pre-compute indices for popular models (OLMo, LLaMA, Qwen2, Qwen2-VL) using concepts.txt, host on McGill-NLP HuggingFace
 - [ ] Write a feature/spec doc explaining user-facing capabilities in prose
-- [ ] Relax `torch<2.5.0` upper bound in pyproject.toml (blocks users on newer PyTorch)
-- [ ] Register `slow` pytest mark in pyproject.toml (currently shows warnings)
+- [x] ~~Relax `torch<2.5.0` upper bound in pyproject.toml~~ — resolved (no upper bound in current deps)
+- [x] ~~Register `slow` pytest mark in pyproject.toml~~ — resolved (added in pytest.ini_options)
 - [ ] Review API ergonomics with co-authors
 - [ ] Merge `feature/library-api` → `main` when ready
+
+---
+
+## 2026-02-22 — Pre-merge release prep
+
+**6 fixes before merge + PyPI publish:**
+1. **CRITICAL:** Bundle `concepts.txt` inside the wheel via hatch `force-include`, so `corpus="concepts.txt"` works after `pip install` (not just from repo root)
+2. Remove broken CLI entry point (`[project.scripts]` pointed at `molmo.cli:main` — paper reproduction, not library API)
+3. Add `packaging>=21.0` to explicit dependencies (was only transitive via transformers)
+4. Remove premature `SUPPORTED_MODELS` backwards-compat alias (no existing users for v0.1.0)
+5. Update project description: "Interpret what hidden representations encode via contextual nearest neighbors"
+6. Mark resolved TODOs as done (`torch` upper bound, `slow` pytest mark)
 
 ---
 

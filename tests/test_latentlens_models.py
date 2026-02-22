@@ -28,10 +28,6 @@ class TestModelDefaults:
         assert MODEL_DEFAULTS["meta-llama/Meta-Llama-3-8B"]["num_hidden_layers"] == 32
         assert MODEL_DEFAULTS["Qwen/Qwen2-7B"]["num_hidden_layers"] == 28
 
-    def test_backwards_compat_alias(self):
-        """SUPPORTED_MODELS alias still works for backwards compatibility."""
-        from latentlens import SUPPORTED_MODELS
-        assert SUPPORTED_MODELS is MODEL_DEFAULTS
 
 
 class TestLoadModel:

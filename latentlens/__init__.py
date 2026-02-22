@@ -12,9 +12,6 @@ from latentlens.index import ContextualIndex, Neighbor
 from latentlens.extract import auto_layers, build_index, load_corpus
 from latentlens.models import MODEL_DEFAULTS, get_hidden_states, load_model
 
-# Backwards compatibility
-SUPPORTED_MODELS = MODEL_DEFAULTS
-
 __all__ = [
     "ContextualIndex",
     "Neighbor",
@@ -24,5 +21,4 @@ __all__ = [
     "load_model",
     "get_hidden_states",
     "MODEL_DEFAULTS",
-    "SUPPORTED_MODELS",  # backwards compat alias
 ]
