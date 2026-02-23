@@ -19,7 +19,7 @@ pip install latentlens
 ```python
 import latentlens
 
-# Use the bundled concepts.txt (117k sentences, 23k WordNet concepts)
+# Use the bundled concepts.txt (117k sentences from 23k concepts)
 index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus="concepts.txt")
 index.save("llama3_index/")
 
@@ -121,7 +121,7 @@ The index is built once and reused. See [Bundled Corpus](#bundled-corpus-concept
 
 ## Bundled Corpus: `concepts.txt`
 
-We include `concepts.txt` — a general-purpose corpus of **117k sentences covering 23k WordNet concepts** (5 sentences per concept at varying lengths). All [pre-built indices](#pre-built-indices) are built from this corpus using prefix deduplication (identical prefixes produce identical embeddings in causal LMs, so we store each unique prefix only once).
+We include `concepts.txt` — a general-purpose corpus of **117k sentences covering ~23k concepts** (5 sentences per concept at varying lengths). Concepts are derived by intersecting WordNet lemmas with Brown Corpus vocabulary to obtain a broad, common-usage set; an LLM then generates sentences for each concept. All [pre-built indices](#pre-built-indices) are built from this corpus using prefix deduplication (identical prefixes produce identical embeddings in causal LMs, so we store each unique prefix only once).
 
 You can also provide your own domain-specific corpus as a `.txt` file (one sentence per line), a `.csv` file (first column), or a Python list of strings:
 
@@ -390,7 +390,7 @@ python reproduce/scripts/evaluate/aggregate_results.py \
 ## Project Structure
 
 ```
-├── concepts.txt              # Bundled corpus (117k sentences, 23k WordNet concepts)
+├── concepts.txt              # Bundled corpus (117k sentences from 23k concepts)
 ├── quickstart.py             # Try LatentLens in 5 minutes (standalone)
 ├── latentlens/               # Library: build & search contextual indices
 │   ├── index.py              # ContextualIndex, Neighbor, search, save/load
