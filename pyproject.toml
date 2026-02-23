@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "latentlens"
 version = "0.1.0"
-description = "LatentLens: Interpreting Visual Tokens in Vision-Language Models"
+description = "Interpret what hidden representations encode via contextual nearest neighbors"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -37,11 +37,11 @@ classifiers = [
 ]
 
 dependencies = [
-    "torch>=2.3.0,<2.5.0",
+    "torch>=2.3.0",
     "torchvision>=0.18.0",
     "transformers>=4.45.0",
     "huggingface-hub>=0.25.0",
-    "numpy>=1.26.0,<2.0.0",
+    "numpy>=1.26.0",
     "pillow>=10.0.0",
     "einops>=0.8.0",
     "omegaconf>=2.3.0",
@@ -49,6 +49,7 @@ dependencies = [
     "ml-dtypes>=0.4.0",
     "accelerate>=1.0.0",
     "tqdm>=4.60.0",
+    "packaging>=21.0",
 ]
 
 [project.optional-dependencies]
@@ -68,11 +69,11 @@ Homepage = "https://github.com/McGill-NLP/latentlens"
 Documentation = "https://github.com/McGill-NLP/latentlens"
 Repository = "https://github.com/McGill-NLP/latentlens"
 
-[project.scripts]
-latentlens = "molmo.cli:main"
-
 [tool.hatch.build.targets.wheel]
 packages = ["latentlens", "molmo"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"concepts.txt" = "latentlens/data/concepts.txt"
 
 [tool.ruff]
 line-length = 100
@@ -85,3 +86,7 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "gpu: marks tests requiring a GPU",
+]

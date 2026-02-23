@@ -4,54 +4,180 @@
 [![Demo](https://img.shields.io/badge/Demo-Interactive-orange.svg)](https://bennokrojer.com/vlm_interp_demo/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+**LatentLens** interprets what hidden representations in LLM-based models (LLMs, VLMs, ...) encode by finding their nearest neighbors in a bank of contextual text embeddings. Unlike Logit Lens (which projects to vocabulary space), LatentLens compares against embeddings *in context* — yielding highly interpretable results.
 
-**LatentLens** interprets (continuous) token representations in language models by finding their nearest neighbors in contextual text embedding space. In our paper we specifically study visual tokens and find they are highly interpretable under LatentLens (but e.g. not with Logit Lens). We imagine it can be used beyond vision, across many other domains.
+Works with any HuggingFace model (LLMs, VLMs, etc.). No training required.
+
+## Getting Started
+
+```bash
+pip install latentlens
+```
+
+**Option A: Build your own index of contextual embeddings** — point to any HuggingFace model + a text corpus:
+
+```python
+import latentlens
+
+# Use the bundled concepts.txt (117k sentences, 23k WordNet concepts)
+index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus="concepts.txt")
+index.save("llama3_index/")
+
+# Or use your own domain-specific corpus
+index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus="my_texts.txt")
+```
+
+**Option B: Load a pre-built index** (we provide indices for popular models):
+
+```python
+index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/contextual_embeddings-llama3.1-8b")
+```
+
+**Search** — pass any hidden states `[num_tokens, hidden_dim]` and get back interpretable nearest neighbors:
+
+```python
+results = index.search(hidden_states, top_k=5)
+# results[i] = [Neighbor(token_str=' dog', similarity=0.42, contextual_layer=27), ...]
+
+# Or search only specific contextual layers:
+results = index.search(hidden_states, top_k=5, layers=[8, 27])
+```
 
 <p align="center">
   <img src="figures/method.png" width="80%" alt="LatentLens method overview">
 </p>
 
----
+## Full Example: Interpret Hidden States
 
-## This Repository
+```python
+import latentlens
 
-- [x] [Quickstart](#quick-start) for Qwen2-VL visual token interpretation
-- [ ] General-purpose `latentlens` library for any LLM
-- [x] [Paper reproduction](#reproducing-paper-results) scripts and configs
+# Load any HuggingFace model
+model, tokenizer = latentlens.load_model("Qwen/Qwen2.5-7B")
 
-1. **[Using LatentLens](#using-latentlens)** — Analyze continuous token representations in any LLM: go here for your custom use case, or to get started quickly
-2. **[Reproducing Paper Results](#reproducing-paper-results)** — Reproduce our main results on visual tokens: go here if you want to reproduce our paper
+# Load a pre-built index (or build your own — see Getting Started)
+index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/contextual_embeddings-qwen2.5-7b")
 
----
+# Get hidden states from your input
+# hidden_states[0] = input embeddings
+# hidden_states[1] through hidden_states[N] = transformer layer outputs (N = num_hidden_layers)
+inputs = tokenizer("a photo of a dog", return_tensors="pt").to("cuda")
+hidden_states = latentlens.get_hidden_states(model, inputs["input_ids"])
 
-## Using LatentLens
+# Interpret layer 27 — search auto-normalizes the query
+results = index.search(hidden_states[27].squeeze(0), top_k=5)
 
-LatentLens works by comparing continuous token representations against a bank of contextual text embeddings. The core idea:
+for i, neighbors in enumerate(results):
+    token = tokenizer.decode(inputs["input_ids"][0, i])
+    nn = neighbors[0]
+    print(f"{token:>10} → {nn.token_str!r} (sim={nn.similarity:.2f}, layer={nn.contextual_layer})")
+```
 
-1. **Build a contextual embedding bank** by running your LLM on text data
-2. **Find nearest neighbors** to interpret what the continuous tokens of your interest encode
+### VLM Example: Interpret Visual Tokens
 
-### Quick Start
+For VLMs like Qwen2.5-VL, use `apply_chat_template()` to format the input — this inserts
+the image placeholder tokens that tell the model where visual features go:
 
-Try LatentLens on **Qwen2-VL-7B-Instruct** — an off-the-shelf VLM that requires no connector training. The script uses only `transformers` and `torch` (no `latentlens` package imports needed):
+```python
+import torch
+import latentlens
+from transformers import AutoProcessor
+from PIL import Image
+
+# Load a VLM and its processor
+model, tokenizer = latentlens.load_model("Qwen/Qwen2.5-VL-7B-Instruct", dtype=torch.float16)
+processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
+
+# Load pre-built index for this VLM
+index = latentlens.ContextualIndex.from_pretrained("McGill-NLP/contextual_embeddings-qwen2.5-vl-7b")
+
+# Process image + text — apply_chat_template inserts the image placeholder tokens
+image = Image.open("example.jpg")
+messages = [{"role": "user", "content": [
+    {"type": "image", "image": image},
+    {"type": "text", "text": "Describe this image."},
+]}]
+text_prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+inputs = processor(images=[image], text=[text_prompt], return_tensors="pt", padding=True).to("cuda")
+
+# Extract hidden states — pass all processor outputs
+hidden_states = latentlens.get_hidden_states(model, **inputs)
+
+# Interpret the last layer's hidden states for all tokens
+results = index.search(hidden_states[27].squeeze(0), top_k=5)
+```
+
+## What You Need
+
+| Component | What it is | How to get it |
+|-----------|-----------|---------------|
+| **A model** | Any HuggingFace LLM or VLM | `latentlens.load_model("model_name")` |
+| **A contextual index** | Bank of text embeddings from that model | `build_index(model, corpus)` or `from_pretrained()` |
+| **Hidden states to interpret** | Your tokens of interest | `latentlens.get_hidden_states(model, input_ids)` |
+
+The index is built once and reused. See [Bundled Corpus](#bundled-corpus-conceptstxt) below for details on the included corpus, or provide your own domain-specific text.
+
+**Tip:** If you already have a loaded model, pass it directly to avoid loading twice: `build_index("meta-llama/Meta-Llama-3-8B", corpus="concepts.txt", model=model, tokenizer=tokenizer)`
+
+## Bundled Corpus: `concepts.txt`
+
+We include `concepts.txt` — a general-purpose corpus of **117k sentences covering 23k WordNet concepts** (5 sentences per concept at varying lengths). All [pre-built indices](#pre-built-indices) are built from this corpus using prefix deduplication (identical prefixes produce identical embeddings in causal LMs, so we store each unique prefix only once).
+
+You can also provide your own domain-specific corpus as a `.txt` file (one sentence per line), a `.csv` file (first column), or a Python list of strings:
+
+```python
+# Custom corpus
+index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus="my_domain_texts.txt")
+index = latentlens.build_index("meta-llama/Meta-Llama-3-8B", corpus=["sentence 1", "sentence 2"])
+```
+
+> **Relation to the paper:** The original LatentLens paper ([Krojer et al., 2026](https://arxiv.org/abs/2602.00462)) used ~3M Visual Genome phrases (`reproduce/vg_phrases.txt`) — a corpus tailored to interpreting visual tokens in VLMs. The library instead uses `concepts.txt`, which provides broad coverage of concepts humans care about, making it suitable for interpreting *any* LLM-based model, not just VLMs. We validate this improved corpus and extraction pipeline in a forthcoming companion paper. To reproduce the original paper results exactly, see [Reproducing Paper Results](#reproducing-paper-results).
+
+## Pre-built Indices
+
+We provide pre-computed contextual embeddings for popular LLMs and VLMs, built from the bundled `concepts.txt` corpus across 8 layers each. Browse all indices in our [HuggingFace Collection](https://huggingface.co/collections/McGill-NLP/latentlens-contextual-embeddings-6997a0e5a50d7999075ffef6).
+
+**LLMs:**
+
+| Model | HuggingFace Repo | Layers | Size |
+|-------|-----------------|--------|------|
+| **Llama-3.1-8B** | [`McGill-NLP/contextual_embeddings-llama3.1-8b`](https://huggingface.co/McGill-NLP/contextual_embeddings-llama3.1-8b) | 1, 2, 4, 8, 16, 24, 30, 31 | 32 GB |
+| **Gemma-2-9B** | [`McGill-NLP/contextual_embeddings-gemma2-9b`](https://huggingface.co/McGill-NLP/contextual_embeddings-gemma2-9b) | 1, 2, 4, 8, 16, 24, 40, 41 | 15 GB |
+| **Qwen2.5-7B** | [`McGill-NLP/contextual_embeddings-qwen2.5-7b`](https://huggingface.co/McGill-NLP/contextual_embeddings-qwen2.5-7b) | 1, 2, 4, 8, 16, 24, 26, 27 | 28 GB |
+
+**VLMs** (text-only forward passes through the VLM's finetuned LLM backbone):
+
+| Model | HuggingFace Repo | Layers | Size |
+|-------|-----------------|--------|------|
+| **Qwen2.5-VL-7B** | [`McGill-NLP/contextual_embeddings-qwen2.5-vl-7b`](https://huggingface.co/McGill-NLP/contextual_embeddings-qwen2.5-vl-7b) | 1, 2, 4, 8, 16, 24, 26, 27 | 28 GB |
+| **Qwen3-VL-8B** | [`McGill-NLP/contextual_embeddings-qwen3-vl-8b`](https://huggingface.co/McGill-NLP/contextual_embeddings-qwen3-vl-8b) | 1, 2, 4, 8, 16, 24, 34, 35 | 32 GB |
+| **Molmo2-8B** | [`McGill-NLP/contextual_embeddings-molmo2-8b`](https://huggingface.co/McGill-NLP/contextual_embeddings-molmo2-8b) | 1, 2, 4, 8, 16, 24, 34, 35 | 32 GB |
+
+Load specific layers to save memory and download time:
+
+```python
+# Load only early + late layers (~2 layers instead of 8)
+index = latentlens.ContextualIndex.from_pretrained(
+    "McGill-NLP/contextual_embeddings-llama3.1-8b", layers=[1, 31]
+)
+```
+
+## Quickstart Script (Qwen2-VL visual tokens)
+
+For a self-contained demo interpreting visual tokens in Qwen2-VL (no library install needed):
 
 ```bash
 python quickstart.py                            # uses bundled example.png
 python quickstart.py --image path/to/image.jpg  # your own image
 ```
 
-On first run, pre-computed contextual embeddings (~2GB per layer) are downloaded from [HuggingFace](https://huggingface.co/McGill-NLP/latentlens-qwen2vl-embeddings). The script:
-
-1. Loads Qwen2-VL and processes your image
-2. Extracts hidden states at layers 2, 8, and 27
-3. Finds nearest text neighbors in contextual embedding space
-4. Outputs a visualization .png file with the input image and sampled visual token interpretations 
-
-Customize with `--layers 1,4,8,16,24,27` and `--top-k 10`. Requires a GPU with >=24GB VRAM.
+Pre-computed contextual embeddings are downloaded automatically from [HuggingFace](https://huggingface.co/McGill-NLP). Requires a GPU with >=24GB VRAM.
 
 ---
 
 ## Reproducing Paper Results
+
+> **Note:** This section reproduces the original paper, which uses a different corpus (~3M Visual Genome phrases) and extraction pipeline (reservoir sampling, float8 storage) than the library above. The library's `build_index()` and pre-built indices use `concepts.txt` instead.
 
 This section walks through reproducing our main results on visual token interpretability in VLMs.
 
@@ -239,6 +365,15 @@ python reproduce/scripts/evaluate/aggregate_results.py \
 > - **DINOv2 models** (`olmo-dino`, `llama-dino`, `qwen-dino`): Pass `--model-name` containing "dinov2" (e.g., `--model-name olmo-dino`).
 > - **Qwen2-VL**: Pass `--model-name qwen2vl`.
 
+### Model Configurations (Paper)
+
+| Model | LLM Layers | Vision Patches | Layers Analyzed |
+|-------|------------|----------------|-----------------|
+| OLMo-7B / LLaMA3-8B | 32 | 576 (24×24) | 0, 1, 2, 4, 8, 16, 24, 30, 31 |
+| Qwen2-7B / Qwen2-VL | 28 | 729 (27×27) | 0, 1, 2, 4, 8, 16, 24, 26, 27 |
+
+**Note:** SigLIP uses 27×27 patches (729 total), while CLIP and DINOv2 use 24×24 (576 total).
+
 ### Reproduce Main Results (all 9 models)
 
 ```bash
@@ -252,22 +387,15 @@ python reproduce/scripts/evaluate/aggregate_results.py \
 
 ---
 
-## Model Configurations
-
-| Model | LLM Layers | Vision Patches | Layers Analyzed |
-|-------|------------|----------------|-----------------|
-| OLMo-7B / LLaMA3-8B | 32 | 576 (24×24) | 0, 1, 2, 4, 8, 16, 24, 30, 31 |
-| Qwen2-7B / Qwen2-VL | 28 | 729 (27×27) | 0, 1, 2, 4, 8, 16, 24, 26, 27 |
-
-**Note:** SigLIP uses 27×27 patches (729 total), while CLIP and DINOv2 use 24×24 (576 total).
-
----
-
 ## Project Structure
 
 ```
+├── concepts.txt              # Bundled corpus (117k sentences, 23k WordNet concepts)
 ├── quickstart.py             # Try LatentLens in 5 minutes (standalone)
-├── latentlens/               # Method library (coming soon)
+├── latentlens/               # Library: build & search contextual indices
+│   ├── index.py              # ContextualIndex, Neighbor, search, save/load
+│   ├── extract.py            # build_index(), corpus loading, prefix dedup
+│   └── models.py             # load_model(), get_hidden_states(), MODEL_DEFAULTS
 ├── molmo/                    # Molmo VLM infrastructure (for reproduction)
 │   ├── model.py              # Model architecture with layer hooks
 │   ├── config.py             # Configuration classes
