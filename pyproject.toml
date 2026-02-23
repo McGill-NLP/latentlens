@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling<1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -7,7 +7,7 @@ name = "latentlens"
 version = "0.1.0"
 description = "Interpret what hidden representations encode via contextual nearest neighbors"
 readme = "README.md"
-license = "MIT"
+license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
     { name = "Benno Krojer", email = "benno.krojer@mila.quebec" },
