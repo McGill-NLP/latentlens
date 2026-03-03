@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from latentlens.index import ContextualIndex
-from latentlens.models import MODEL_DEFAULTS, get_hidden_states, get_num_hidden_layers, load_model
+from latentlens.models import SUPPORTED_MODELS, get_hidden_states, load_model
 
 
 def auto_layers(num_hidden_layers: int) -> list[int]:
@@ -61,11 +61,6 @@ def load_corpus(source: Union[str, Path, list[str]]) -> list[str]:
         return source
 
     path = Path(source)
-    # Resolve bundled corpus: "concepts.txt" → package data
-    if not path.is_absolute() and not path.exists():
-        bundled = Path(__file__).parent / "data" / path.name
-        if bundled.exists():
-            path = bundled
     if path.suffix == ".csv":
         texts: list[str] = []
         with open(path, newline="", encoding="utf-8") as f:
@@ -93,8 +88,6 @@ def build_index(
     device: Optional[Union[str, torch.device]] = None,
     dtype: torch.dtype = torch.float32,
     show_progress: bool = True,
-    model=None,
-    tokenizer=None,
 ) -> ContextualIndex:
     """
     Build a :class:`ContextualIndex` by running a causal LM on a text corpus.
@@ -118,28 +111,20 @@ def build_index(
         Model weight dtype (default ``torch.float32``).
     show_progress : bool
         Show a ``tqdm`` progress bar.
-    model : PreTrainedModel, optional
-        Pass an already-loaded model to avoid loading it again.
-        If provided, ``tokenizer`` must also be given.
-    tokenizer : PreTrainedTokenizer, optional
-        Pass an already-loaded tokenizer. Required if ``model`` is provided.
 
     Returns
     -------
     ContextualIndex
     """
     # ── Load model ────────────────────────────────────────────────────────
-    if model is not None and tokenizer is not None:
-        dev = next(model.parameters()).device
-    else:
-        model, tokenizer = load_model(model_name, device=device, dtype=dtype)
-        dev = next(model.parameters()).device
+    model, tokenizer = load_model(model_name, device=device, dtype=dtype)
+    dev = next(model.parameters()).device
 
     # ── Determine layers ──────────────────────────────────────────────────
-    n_layers = get_num_hidden_layers(model)
+    n_layers = model.config.num_hidden_layers
     if layers is None:
-        if model_name in MODEL_DEFAULTS:
-            layers_to_extract = MODEL_DEFAULTS[model_name]["default_layers"]
+        if model_name in SUPPORTED_MODELS:
+            layers_to_extract = SUPPORTED_MODELS[model_name]["default_layers"]
         else:
             layers_to_extract = auto_layers(n_layers)
     else:
@@ -210,7 +195,7 @@ def build_index(
 
                 # Store embedding for ALL extracted layers (shared decision)
                 for layer_idx in layers_to_extract:
-                    # hidden_states[0] = input embeddings, [1..N] = layer outputs
+                    # hidden_states[0] = input embeddings, [i] = block i output
                     emb = hidden_states[layer_idx][sent_idx, pos, :].cpu()
                     layer_embeddings[layer_idx].append(emb)
                     layer_metadata[layer_idx].append(meta)

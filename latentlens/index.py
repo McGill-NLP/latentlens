@@ -103,8 +103,7 @@ class ContextualIndex:
         Parameters
         ----------
         query : Tensor of shape ``[num_tokens, hidden_dim]``
-            Query vectors (e.g., hidden states from an LLM layer).
-            Automatically L2-normalized if not already.
+            L2-normalized query vectors (e.g., hidden states from an LLM layer).
         top_k : int
             Number of neighbors per query token.
         layers : sequence of int, optional
@@ -118,8 +117,6 @@ class ContextualIndex:
         """
         if query.ndim == 1:
             query = query.unsqueeze(0)
-
-        query = F.normalize(query.float(), dim=-1)
 
         search_layers = sorted(layers) if layers is not None else self.available_layers
 
@@ -185,25 +182,13 @@ class ContextualIndex:
 
     # ── I/O ───────────────────────────────────────────────────────────────
 
-    def save(
-        self,
-        path: Union[str, Path],
-        storage_dtype: torch.dtype = torch.float16,
-    ) -> None:
+    def save(self, path: Union[str, Path]) -> None:
         """
         Save the index to a directory with one sub-directory per layer.
 
         Each layer is saved as ``layer_N/embeddings_cache.pt`` containing
         ``{"embeddings": Tensor, "metadata": list[dict]}``, compatible with
         the cache format used by ``quickstart.py`` and ``extract_embeddings.py``.
-
-        Parameters
-        ----------
-        path : str or Path
-            Output directory.
-        storage_dtype : torch.dtype
-            Dtype for stored embeddings (default ``torch.float16`` for 2x
-            savings).  Embeddings are cast back to float32 on load.
         """
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
@@ -216,7 +201,7 @@ class ContextualIndex:
             layer_dir.mkdir(parents=True, exist_ok=True)
             torch.save(
                 {
-                    "embeddings": layer_data["embeddings"].cpu().to(storage_dtype),
+                    "embeddings": layer_data["embeddings"].cpu(),
                     "metadata": layer_data["metadata"],
                 },
                 layer_dir / "embeddings_cache.pt",

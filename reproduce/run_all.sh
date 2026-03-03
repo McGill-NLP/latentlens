@@ -5,7 +5,8 @@
 # Total time: ~24-48 hours depending on hardware.
 #
 # Usage:
-#   ./reproduce/run_all.sh                # Run everything
+#   ./reproduce/run_all.sh                # Run everything (download pretrained connectors)
+#   ./reproduce/run_all.sh --train        # Train connectors from scratch instead of downloading
 #   ./reproduce/run_all.sh --skip-step1   # Skip download (if data is ready)
 #   ./reproduce/run_all.sh --skip-step2   # Skip embedding extraction (if cached)
 
@@ -22,9 +23,13 @@ echo ""
 # Parse arguments
 SKIP_STEP1=false
 SKIP_STEP2=false
+TRAIN_FROM_SCRATCH=false
 
 for arg in "$@"; do
     case $arg in
+        --train)
+            TRAIN_FROM_SCRATCH=true
+            ;;
         --skip-step1)
             SKIP_STEP1=true
             ;;
@@ -37,8 +42,13 @@ done
 # Change to repo root
 cd "$(dirname "$0")/.."
 
-# Step 1: Download
-if [ "$SKIP_STEP1" = false ]; then
+# Step 0/1: Train or Download
+if [ "$TRAIN_FROM_SCRATCH" = true ]; then
+    echo "Training connectors from scratch (step 0)..."
+    # Download base models (LLMs + ViTs) but not pretrained connectors
+    ./reproduce/step1_download.sh
+    ./reproduce/step0_train.sh
+elif [ "$SKIP_STEP1" = false ]; then
     ./reproduce/step1_download.sh
 else
     echo "Skipping Step 1 (download)"

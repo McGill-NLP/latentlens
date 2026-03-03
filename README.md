@@ -257,6 +257,63 @@ pretrained/            # Converted base models (Molmo format)
 └── siglip-so400m-14-384.pt
 ```
 
+### Training Connectors (Optional)
+
+If you want to **train the connectors from scratch** instead of using our pretrained weights:
+
+**Prerequisites:**
+- 4× A100 80GB (or equivalent)
+- ~250 GB disk space for the [PixMo-Cap](https://huggingface.co/datasets/allenai/pixmo-cap) dataset
+
+**Setup:**
+
+```bash
+# Install training dependencies
+pip install -e ".[train]"
+
+# Set data directory (images + processed dataset will be stored here)
+export MOLMO_DATA_DIR=/path/to/data
+
+# Download the PixMo-Cap dataset (~1-2h depending on network, downloads images)
+python -c "from molmo.data.pixmo_datasets import PixMoCap; PixMoCap.download(n_procs=8)"
+
+# Download base models (LLMs + vision encoders)
+./reproduce/step1_download.sh
+```
+
+**Train:**
+
+```bash
+# Train all 9 models (~3-5h each)
+./reproduce/step0_train.sh
+
+# Or train a single model
+./reproduce/step0_train.sh --model olmo-vit
+
+# Or use a different GPU count
+NPROC_PER_NODE=8 ./reproduce/step0_train.sh --model olmo-vit
+```
+
+Each model trains for 12,000 steps on PixMo-Cap with the LLM and vision encoder frozen — only the MLP connector is trained.
+
+You can also run the training script directly:
+
+```bash
+torchrun --nproc_per_node=4 reproduce/scripts/train_connector.py \
+    reproduce/configs/olmo-vit.yaml
+
+# Dry run (parse config, init model, no actual training)
+torchrun --nproc_per_node=1 reproduce/scripts/train_connector.py \
+    reproduce/configs/olmo-vit.yaml --dry_run
+```
+
+After training, extract connector weights:
+```bash
+python scripts/extract_connector.py \
+    --checkpoint checkpoints/<save_folder>/step12000-unsharded \
+    --output connectors/olmo-vit.pt
+```
+
 ### Step 3: Extract Contextual Embeddings
 
 For LatentLens analysis, you need contextual text embeddings from each LLM. This is the most time-consuming step (~13h per LLM on a single GPU, processing ~3M Visual Genome phrases).
@@ -399,6 +456,9 @@ python reproduce/scripts/evaluate/aggregate_results.py \
 ├── molmo/                    # Molmo VLM infrastructure (for reproduction)
 │   ├── model.py              # Model architecture with layer hooks
 │   ├── config.py             # Configuration classes
+│   ├── train.py              # Trainer class (for connector training)
+│   ├── optim.py              # Optimizer and LR schedulers
+│   ├── eval/                 # Loss evaluator (training only)
 │   └── data/                 # Image preprocessing, datasets
 └── reproduce/                # Paper reproduction
     ├── scripts/              # Analysis scripts
@@ -406,9 +466,11 @@ python reproduce/scripts/evaluate/aggregate_results.py \
     │   ├── run_logitlens.py
     │   ├── run_embedding_lens.py
     │   ├── extract_embeddings.py
+    │   ├── train_connector.py  # Training entry point (torchrun)
     │   └── evaluate/         # LLM judge evaluation
     ├── configs/              # Model configurations (YAML)
     ├── vg_phrases.txt        # Visual Genome phrases corpus
+    ├── step0_train.sh        # Train connectors from scratch (optional)
     ├── step1_download.sh
     ├── step2_extract_contextual.sh
     └── step3_run_analysis.sh

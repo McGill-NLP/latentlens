@@ -55,6 +55,7 @@ dependencies = [
 [project.optional-dependencies]
 train = [
     "wandb>=0.18.0",
+    "torchmetrics>=1.0.0",
 ]
 dev = [
     "pytest>=8.0.0",
