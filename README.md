@@ -262,8 +262,8 @@ pretrained/            # Converted base models (Molmo format)
 If you want to **train the connectors from scratch** instead of using our pretrained weights:
 
 **Prerequisites:**
-- 4× A100 80GB (or equivalent)
-- ~250 GB disk space for the [PixMo-Cap](https://huggingface.co/datasets/allenai/pixmo-cap) dataset
+- Multi-GPU setup recommended (configs default to 4 GPUs; adjustable via `NPROC_PER_NODE`)
+- [PixMo-Cap](https://huggingface.co/datasets/allenai/pixmo-cap) dataset (see setup below)
 
 **Setup:**
 
@@ -274,7 +274,7 @@ pip install -e ".[train]"
 # Set data directory (images + processed dataset will be stored here)
 export MOLMO_DATA_DIR=/path/to/data
 
-# Download the PixMo-Cap dataset (~1-2h depending on network, downloads images)
+# Download the PixMo-Cap dataset (downloads images, may take a while)
 python -c "from molmo.data.pixmo_datasets import PixMoCap; PixMoCap.download(n_procs=8)"
 
 # Download base models (LLMs + vision encoders)
@@ -284,7 +284,7 @@ python -c "from molmo.data.pixmo_datasets import PixMoCap; PixMoCap.download(n_p
 **Train:**
 
 ```bash
-# Train all 9 models (~3-5h each)
+# Train all 9 models
 ./reproduce/step0_train.sh
 
 # Or train a single model

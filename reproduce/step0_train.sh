@@ -12,9 +12,7 @@
 #   NPROC_PER_NODE  Number of GPUs per node (default: 4)
 #   CUDA_VISIBLE_DEVICES  Which GPUs to use (default: all)
 #
-# Hardware requirements:
-#   - 4× A100 80GB (or equivalent)
-#   - ~3-5 hours per model (12,000 steps)
+# Each model trains for 12,000 steps with the LLM and ViT frozen.
 
 set -e
 
